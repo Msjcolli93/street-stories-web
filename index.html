@@ -2,15 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Street Stories</title>
 <!-- Sprint 6: items, ATM skim loop, weather -->
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <style>
-:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{color-scheme:dark;box-sizing:border-box}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
-body{background:#09090b;color:#e4e4e7;font-family:'Space Grotesk',system-ui,sans-serif;background-image:radial-gradient(ellipse at 50% -10%,#1e1b3a 0,transparent 60%)}
+body{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);touch-action:manipulation;overscroll-behavior-y:none;background:#09090b;color:#e4e4e7;font-family:'Space Grotesk',system-ui,sans-serif;background-image:radial-gradient(ellipse at 50% -10%,#1e1b3a 0,transparent 60%)}
+button,[data-act],a,.card{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .hd{font-family:'Rajdhani','Arial Narrow',sans-serif;letter-spacing:.02em}
 .panel{background:#18181bcc;border:1px solid #3f3f46}
 .bar{height:8px;background:#27272a;border-radius:2px;overflow:hidden}.bar>i{display:block;height:100%}
@@ -267,6 +268,15 @@ function decodeB64(b64) { const bin = atob(b64); const bytes = Uint8Array.from(b
 
 /* ============ SOUND ENGINE (zero assets, Web Audio only) ============ */
 const AUDIO_KEY = "street-stories-audio";
+/** Haptic feedback via the HTML5 Vibration API. Silently no-ops where unsupported. */
+const Haptics = {
+  vibrate(pattern) {
+    try { if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate(pattern); } catch (e) { /* unsupported or blocked: ignore */ }
+  },
+  light() { this.vibrate([30]); },
+  success() { this.vibrate([40, 60, 40]); },
+  danger() { this.vibrate([100, 50, 100]); }
+};
 class SoundEngine {
   #ctx = null; #muted = true;
   constructor() {
@@ -1235,10 +1245,10 @@ class GameController {
       const won = ended && after.meta.status === "won";
       const done = Object.keys(af).some((k) => /^(contract_.*_done|milestone_.*)$/.test(k) && af[k] === true && bf[k] !== true);
       const pager = !ctx.activeContract && !!after.activeContract;
-      if (hurt || ambush) this.sound.playDanger();
-      else if (won || done) this.sound.playSuccess();
+      if (hurt || ambush) { this.sound.playDanger(); Haptics.danger(); }
+      else if (won || done) { this.sound.playSuccess(); Haptics.success(); }
       else if (pager) this.sound.playPager();
-      else if (a.cash > b.cash) this.sound.playCash();
+      else if (a.cash > b.cash) { this.sound.playCash(); Haptics.success(); }
     } catch (e) { console.warn("Sound cue skipped:", e); }
   }
   exportText() { return encodeB64(JSON.stringify({ format: "street-stories", save: "v7", state: this.store.getState() })); }
@@ -1356,6 +1366,7 @@ class GameView {
     this.root = root; this.c = controller; this.prev = null; this.toast = null; this.toastTimer = null; this.importText = ""; this.wipeArmed = false; this.stashOpen = false; this.phoneOpen = false; this.panel = null; this.last = null; this.draft = { name: "", origin: null }; this.settingsOpen = false; this.cfgDraft = { ...controller.bridge.config }; this.cfgStatus = null; this.cfgMsg = null; this.typeId = null; this.typeN = 0;
     root.addEventListener("click", (e) => {
       const t = e.target.closest("[data-act]"); if (!t || t.disabled) return;
+      Haptics.light();
       const { act, arg } = t.dataset;
       this.c.sound.playClick();
       if (act === "do") { const card = DISTRICTS[this.c.store.getState().world.currentDistrict].cards.find((c) => c.id === arg); if (card && card.panel) { this.panel = this.panel === card.panel ? null : card.panel; this.render(this.c.store.getState()); } else this.c.perform(arg); }
