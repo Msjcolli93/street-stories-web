@@ -1,0 +1,7 @@
+android/
+www/
+scripts/
+.github/
+node_modules/
+capacitor.config.json
+package.json

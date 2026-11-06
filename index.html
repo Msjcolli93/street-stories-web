@@ -845,7 +845,133 @@ const ENCOUNTER_DECK = [
           ? { delta: { heat: -20, streetCred: 5 }, tone: "good", text: "He gave it up before you finished the sentence.", logs: [["narrative", "Leaned on the informant."], ["gain", "Heat -20, +5 Street Cred."]] }
           : { delta: { heat: 10 }, tone: "bad", text: "He called your bluff and made a scene.", logs: [["narrative", "The informant didn't flinch."], ["warn", "Backfire. Heat +10."]] } },
       { id: "decline", label: "Walk Away", desc: "Nothing happens.", odds: () => "Safe", resolve: () => ({ delta: {}, tone: "neutral", text: "You left him in the doorway.", logs: [["narrative", "Declined the tip."]] }) }
-    ] }
+    ] },
+  { id: "wiretap", title: "The Wiretap Paranoia", districtFilter: [SAFE], minHeat: 35, risk: 3,
+    flavor: "A gray van with no plates has idled across from the safehouse for three hours. Someone inside is listening.",
+    choices: [
+      { id: "lay_low", label: "Go Dark for the Night", desc: "Costs 15 Energy. Heat -15.", req: (s) => need(s.player.stats.energy >= 15, "Requires 15 Energy"), odds: () => "Certain",
+        resolve: () => ({ delta: { energy: -15, heat: -15 }, tone: "good", text: "You killed the lights and the van drove away by midnight.", narrative_seeds: ["went dark to dodge a surveillance van outside the safehouse"], logs: [["narrative", "Phones off, blinds down, no moves."], ["loss", "-15 Energy."], ["gain", "Heat -15."]] }) },
+      { id: "sweep", label: "Sweep the Van", desc: "Win: Heat -25, +5 Cred. Lose: -15 Health, Heat +20.", req: (s) => need(s.player.stats.intellect >= 40, "Requires Intellect 40"), odds: (s) => `${pct(45 + s.player.stats.intellect - 40)}% success`,
+        resolve: (s, rng) => rng() * 100 < pct(45 + s.player.stats.intellect - 40)
+          ? { delta: { heat: -25, streetCred: 5 }, tone: "good", text: "The bug was a cheap relay. You snapped it and the van bolted.", narrative_seeds: ["found and destroyed a surveillance bug outside the safehouse"], logs: [["gain", "Heat -25, +5 Street Cred."]] }
+          : { delta: { health: -15, heat: 20 }, tone: "bad", text: "The van's occupants got a clean look at your face.", narrative_seeds: ["was spotted sweeping a surveillance van at the safehouse"], logs: [["loss", "-15 Health."], ["warn", "Heat +20."]] } },
+      { id: "feed", label: "Feed Them False Intel", desc: "Needs Intellect 60. Heat -30.", req: (s) => need(s.player.stats.intellect >= 60, "Requires Intellect 60"), odds: () => "Certain",
+        resolve: () => ({ delta: { heat: -30 }, flags: { false_intel: true }, tone: "good", text: "You fed them a story about a dead drop that never existed. They wrote it down.", narrative_seeds: ["fed a surveillance team false intel about a dead drop"], logs: [["narrative", "A dead drop that never existed."], ["gain", "Heat -30."]] }) }
+    ] },
+  { id: "burner", title: "The Discarded Burner", districtFilter: [BODEGA], when: (s) => s.meta.timeOfDay === "Night", risk: 2,
+    flavor: "A cheap flip phone buzzes in the gutter behind the bodega. The screen reads: THE DROP IS TONIGHT. DON'T BE LATE.",
+    choices: [
+      { id: "take_drop", label: "Take the Drop", desc: "Cash +350, Heat +10, Westside +3.", odds: () => "Certain",
+        resolve: () => ({ delta: { cash: 350, heat: 10 }, rep: { westside: 3 }, tone: "neutral", text: "A courier in a hoodie handed over an envelope and a warning.", narrative_seeds: ["took an anonymous late-night drop from a discarded burner phone"], logs: [["gain", "+$350."], ["warn", "Heat +10."]] }) },
+      { id: "sell_phone", label: "Sell the Phone", desc: "Cash +80. Quiet.", odds: () => "Certain",
+        resolve: () => ({ delta: { cash: 80 }, tone: "neutral", text: "A fence on Cedar gave you a few bills for the dead handset.", narrative_seeds: ["fenced a discarded burner phone from the bodega gutter"], logs: [["gain", "+$80."]] }) },
+      { id: "ignore", label: "Leave It Ringing", desc: "Nothing happens.", odds: () => "Safe",
+        resolve: () => ({ delta: {}, tone: "neutral", text: "It rang out. Nobody called back.", narrative_seeds: ["left a ringing burner phone behind the bodega"], logs: [["narrative", "The phone stopped ringing."]] }) }
+    ] },
+  { id: "loan_shark", title: "Loan Shark's Muscle", when: (s) => s.player.stats.cash < 250, risk: 3,
+    flavor: "A collector with a neck tattoo pins you against the alley wall. The rent is late and the interest is not.",
+    choices: [
+      { id: "pay", label: "Pay the Vig ($200)", desc: "Cash -200. Council +2.", req: (s) => need(s.player.stats.cash >= 200, "Requires $200"), odds: () => "Certain",
+        resolve: () => ({ delta: { cash: -200 }, rep: { council: 2 }, tone: "neutral", text: "He counted it twice, wrote your name in a notebook, and left.", narrative_seeds: ["paid a loan shark's vig in an alley"], logs: [["loss", "-$200."]] }) },
+      { id: "brawl", label: "Brawl Him Off", desc: "Win: +4 Cred. Lose: -25 Health, -$100.", req: (s) => need(s.player.stats.health >= 40, "Requires Health 40"), odds: (s) => `${pct(45 + (s.player.stats.health - 40) / 3)}% success`,
+        resolve: (s, rng) => rng() * 100 < pct(45 + (s.player.stats.health - 40) / 3)
+          ? { delta: { streetCred: 4 }, tone: "good", text: "He hit the pavement and the crew stopped calling.", narrative_seeds: ["beat a loan shark's collector in an alley"], logs: [["gain", "+4 Street Cred."]] }
+          : { delta: { health: -25, cash: -lose(s, 100) }, tone: "bad", text: "The muscle was twice your size and charged you for the damage.", narrative_seeds: ["lost a fight with a loan shark's collector and paid for it"], logs: [["loss", "-25 Health."], ["loss", "-$100."]] } },
+      { id: "run", label: "Run for the Subway", desc: "Costs 20 Energy and $100 in the scuffle.", req: (s) => need(s.player.stats.energy >= 20, "Requires 20 Energy"), odds: () => "Certain",
+        resolve: (s) => ({ delta: { energy: -20, cash: -lose(s, 100) }, tone: "neutral", text: "You made it onto the train with one shoe.", narrative_seeds: ["escaped a loan shark's collector by running for the subway"], logs: [["loss", "-20 Energy."], ["loss", "-$100 in the scuffle."]] }) }
+    ] },
+  { id: "lux_car", title: "The Luxury Car Breakdown", districtFilter: [STRIP], risk: 2,
+    flavor: "A matte-black sports car sits dead in the bike lane, hazards blinking. The owner is on the phone, shouting at a tow company.",
+    choices: [
+      { id: "boost", label: "Boost the Car", desc: "Win: +$600, Heat +25. Lose: -20 Health, Heat +40.", req: (s) => need(s.player.stats.intellect >= 30, "Requires Intellect 30"), odds: (s) => `${pct(40 + s.player.stats.intellect / 2)}% success`,
+        resolve: (s, rng) => rng() * 100 < pct(40 + s.player.stats.intellect / 2)
+          ? { delta: { cash: 600, heat: 25 }, tone: "good", text: "The car was gone before the tow truck arrived.", narrative_seeds: ["boosted a stalled luxury sports car on the Strip"], logs: [["gain", "+$600."], ["warn", "Heat +25."]] }
+          : { delta: { health: -20, heat: 40 }, tone: "bad", text: "The alarm went off and so did the owner's bodyguard.", narrative_seeds: ["failed to boost a luxury sports car and got beaten by its owner's bodyguard"], logs: [["loss", "-20 Health."], ["warn", "Heat +40."]] } },
+      { id: "help", label: "Help the Owner", desc: "Cred +6, Downtown +5, $40 tip.", odds: () => "Certain",
+        resolve: () => ({ delta: { streetCred: 6, cash: 40 }, rep: { downtown: 5 }, tone: "good", text: "He tipped you forty bucks and gave you his card.", narrative_seeds: ["helped a Downtown car owner with a stalled luxury sports car"], logs: [["gain", "+6 Street Cred, +$40."]] }) },
+      { id: "pass", label: "Walk On By", desc: "Nothing happens.", odds: () => "Safe",
+        resolve: () => ({ delta: {}, tone: "neutral", text: "Not your car, not your problem.", narrative_seeds: ["walked past a stalled luxury sports car on the Strip"], logs: [["narrative", "Kept walking."]] }) }
+    ] },
+  { id: "warehouse", title: "Warehouse Clearance Heist", districtFilter: [SHOP], when: (s) => repOf(s, "westside") >= 10, risk: 3,
+    flavor: "Your Westside contact slides a blueprint across the workbench. A clearance warehouse by the piers has a gate, a tired guard, and a truck full of electronics.",
+    choices: [
+      { id: "picks", label: "Pick the Gate", desc: "Needs a Heavy Duty Lockpick. Win: +$900, Heat +20. Lose: -15 Health, Heat +35.", req: (s) => need(has(s, ITEM.LOCK), "Requires a Lockpick"), odds: () => "65% success",
+        resolve: (s, rng) => rng() < 0.65
+          ? { delta: { cash: 900, heat: 20 }, tone: "good", text: "The gate opened like it was waiting for you.", narrative_seeds: ["lockpicked a clearance warehouse gate on the Westside"], logs: [["gain", "+$900."], ["warn", "Heat +20."]] }
+          : { delta: { health: -15, heat: 35 }, tone: "bad", text: "The guard saw the flashlight and hit the alarm.", narrative_seeds: ["was caught picking a warehouse gate on the Westside"], logs: [["loss", "-15 Health."], ["warn", "Heat +35."]] } },
+      { id: "crew", label: "Hire a Crew ($400)", desc: "Net +$300 after the crew's cut. Heat +10.", req: (s) => need(s.player.stats.cash >= 400, "Requires $400"), odds: () => "Certain",
+        resolve: () => ({ delta: { cash: 300, heat: 10 }, tone: "good", text: "Four guys, one truck, two hours. Split six ways.", narrative_seeds: ["hired a crew for a Westside warehouse clearance job"], logs: [["gain", "+$300 net."], ["warn", "Heat +10."]] }) },
+      { id: "pass", label: "Pass on the Job", desc: "Nothing happens.", odds: () => "Safe",
+        resolve: () => ({ delta: {}, tone: "neutral", text: "Some warehouses are better left alone.", narrative_seeds: ["passed on a Westside warehouse clearance job"], logs: [["narrative", "Left the blueprint on the bench."]] }) }
+    ] },
+  { id: "inspector", title: "Corrupt Inspector Audit", districtFilter: [OFFICE], when: (s) => flag(s, "commercial_lease", false), risk: 2,
+    flavor: "A city inspector in a cheap suit wants to see your storefront's permits. The permits are real. The inspector isn't.",
+    choices: [
+      { id: "envelope", label: "Pay the Envelope ($1,000)", desc: "Cash -1000. Heat -15.", req: (s) => need(s.player.stats.cash >= 1000, "Requires $1,000"), odds: () => "Certain",
+        resolve: () => ({ delta: { cash: -1000, heat: -15 }, tone: "neutral", text: "The clipboard disappeared into the suit. The stamp came out.", narrative_seeds: ["paid a corrupt inspector to wave through a storefront audit"], logs: [["loss", "-$1,000."], ["gain", "Heat -15."]] }) },
+      { id: "fight", label: "Dispute It on Paper", desc: "Needs Intellect 50. Win: Heat -10, Council +3. Lose: Heat +25, -$500.", req: (s) => need(s.player.stats.intellect >= 50, "Requires Intellect 50"), odds: (s) => `${pct(40 + s.player.stats.intellect - 50)}% success`,
+        resolve: (s, rng) => rng() * 100 < pct(40 + s.player.stats.intellect - 50)
+          ? { delta: { heat: -10 }, rep: { council: 3 }, tone: "good", text: "Your paperwork beat his. He left with his ego bruised.", narrative_seeds: ["beat a corrupt inspector with paperwork"], logs: [["gain", "Heat -10, Council +3."]] }
+          : { delta: { heat: 25, cash: -lose(s, 500) }, tone: "bad", text: "The inspector wrote up every violation twice.", narrative_seeds: ["lost a paper fight with a corrupt inspector"], logs: [["warn", "Heat +25."], ["loss", "-$500 in fines."]] } },
+      { id: "lease", label: "Show the Clean Lease", desc: "Needs Intellect 60. Heat -5.", req: (s) => need(s.player.stats.intellect >= 60, "Requires Intellect 60"), odds: () => "Certain",
+        resolve: () => ({ delta: { heat: -5 }, tone: "good", text: "Every line was legal. He had nothing to say.", narrative_seeds: ["showed a corrupt inspector a clean commercial lease"], logs: [["gain", "Heat -5."]] }) }
+    ] },
+  { id: "clinic", title: "The Underground Clinic", when: (s) => s.player.stats.health < 40, risk: 2,
+    flavor: "A back-room medic in a barber's chair stitches your side with fishing line. He wants cash, or a favor you won't like.",
+    choices: [
+      { id: "cash", label: "Pay for the Patch ($250)", desc: "Health +35. Heat +10. He remembers your face.", req: (s) => need(s.player.stats.cash >= 250, "Requires $250"), odds: () => "Certain",
+        resolve: () => ({ delta: { cash: -250, health: 35, heat: 10 }, flags: { clinic_debt: true }, tone: "neutral", text: "The fishing line held. The medic's notebook now has your name in it.", narrative_seeds: ["paid an underground medic to patch up a wound"], logs: [["loss", "-$250."], ["gain", "Health +35."], ["warn", "Heat +10."]] }) },
+      { id: "favor", label: "Trade Stolen Electronics", desc: "Health +25. Hands over your stolen electronics.", req: (s) => need(has(s, ITEM.LOOT), "Requires stolen electronics"), odds: () => "Certain",
+        resolve: () => ({ delta: { health: 25 }, ops: [{ type: "REMOVE_ITEM", item: ITEM.LOOT }], tone: "neutral", text: "He took the electronics without looking and told you to sleep it off.", narrative_seeds: ["traded stolen electronics for medical treatment"], logs: [["gain", "Health +25."], ["loss", "Stolen electronics handed over."]] }) },
+      { id: "walk", label: "Walk Out", desc: "Nothing happens. Health stays low.", odds: () => "Safe",
+        resolve: () => ({ delta: {}, tone: "neutral", text: "You kept your pride and most of your blood.", narrative_seeds: ["refused an underground clinic's offer and walked out"], logs: [["narrative", "The door clicked shut behind you."]] }) }
+    ] },
+  { id: "pickpocket", title: "Rival Pickpocket", districtFilter: [STRIP], risk: 2,
+    flavor: "The crowd on the Strip shoves past you. A kid in a bomber jacket has his hand inside yours, and he's already smiling.",
+    choices: [
+      { id: "chase", label: "Chase Him Down", desc: "Win: +$120, +3 Cred. Lose: -$80, -5 Health.", odds: (s) => `${pct(45 + s.player.stats.streetCred / 2)}% success`,
+        resolve: (s, rng) => rng() * 100 < pct(45 + s.player.stats.streetCred / 2)
+          ? { delta: { cash: 120, streetCred: 3 }, tone: "good", text: "He ran into a dead end and dropped your wallet on the way.", narrative_seeds: ["caught a rival pickpocket on the Strip and took his haul"], logs: [["gain", "+$120, +3 Street Cred."]] }
+          : { delta: { cash: -lose(s, 80), health: -5 }, tone: "bad", text: "He vanished into a crowd of tourists with your cash.", narrative_seeds: ["lost a rival pickpocket in the crowd on the Strip"], logs: [["loss", "-$80."], ["loss", "-5 Health."]] } },
+      { id: "warn", label: "Shake Hands and Warn Him", desc: "Cred +2, Downtown +2.", odds: () => "Certain",
+        resolve: () => ({ delta: { streetCred: 2 }, rep: { downtown: 2 }, tone: "neutral", text: "He grinned, returned your wallet, and walked off with new respect.", narrative_seeds: ["warned off a rival pickpocket on the Strip"], logs: [["gain", "+2 Street Cred."]] }) },
+      { id: "check", label: "Check Your Pockets", desc: "Nothing happens.", odds: () => "Safe",
+        resolve: () => ({ delta: {}, tone: "neutral", text: "Everything was still there. This time.", narrative_seeds: ["caught a pickpocket before anything went missing"], logs: [["narrative", "Your wallet was exactly where you left it."]] }) }
+    ] },
+  { id: "informant", title: "Federal Informant Pitch", when: (s) => s.player.strikes >= 3, risk: 3,
+    flavor: "A man in a windbreaker sits down beside you. He knows your strike count and the judge's name. He wants a name in exchange for a clean slate.",
+    choices: [
+      { id: "snitch", label: "Give Up a Syndicate Boss", desc: "Clears one strike. Westside -15, Heat +20.", odds: () => "Certain",
+        resolve: () => ({ delta: { heat: 20 }, ops: [{ type: "CLEAR_STRIKE" }], rep: { westside: -15 }, flags: { informant_deal: true }, tone: "bad", text: "The name went onto a federal form. One strike disappeared from your record.", narrative_seeds: ["traded a syndicate boss's name to a federal informant for one strike cleared"], logs: [["gain", "One strike cleared."], ["warn", "Heat +20, Westside -15."]] }) },
+      { id: "bribe", label: "Bribe the Agent ($1,500)", desc: "Cash -1500. Clears one strike.", req: (s) => need(s.player.stats.cash >= 1500, "Requires $1,500"), odds: () => "Certain",
+        resolve: () => ({ delta: { cash: -1500 }, ops: [{ type: "CLEAR_STRIKE" }], tone: "neutral", text: "The envelope was cleaner than your record. One strike disappeared.", narrative_seeds: ["bribed a federal informant to clear a strike"], logs: [["loss", "-$1,500."], ["gain", "One strike cleared."]] }) },
+      { id: "refuse", label: "Walk Away Silent", desc: "Heat +10.", odds: () => "Certain",
+        resolve: () => ({ delta: { heat: 10 }, tone: "bad", text: "He wrote something down and slid off the stool.", narrative_seeds: ["refused a federal informant's offer and got noticed"], logs: [["warn", "Heat +10."]] }) }
+    ] },
+  { id: "dumpster", title: "Dumpster Stash Recovery", districtFilter: [BODEGA], when: (s) => s.player.stats.intellect >= 50, risk: 2,
+    flavor: "Behind the bodega, a dumpster has a false bottom. A ledger is hidden under the trash, and the lid is still warm.",
+    choices: [
+      { id: "dig", label: "Dig Through It", desc: "Needs Intellect 50. Win: stolen electronics, +$200. Lose: Heat +15.", odds: (s) => `${pct(50 + (s.player.stats.intellect - 50) / 2)}% success`,
+        resolve: (s, rng) => rng() * 100 < pct(50 + (s.player.stats.intellect - 50) / 2)
+          ? { delta: { cash: 200 }, ops: [{ type: "ADD_ITEM", item: ITEM.LOOT }], tone: "good", text: "Under the ledger: a bag of hot electronics and two hundred in old bills.", narrative_seeds: ["recovered a syndicate stash hidden behind the bodega"], logs: [["gain", "+$200, stolen electronics."]] }
+          : { delta: { heat: 15 }, tone: "bad", text: "The dumpster was rigged to shriek. Half the block came out to look.", narrative_seeds: ["set off an alarm digging through a dumpster behind the bodega"], logs: [["warn", "Heat +15."]] } },
+      { id: "report", label: "Call It In to the Council", desc: "Council +6, Heat -5.", odds: () => "Certain",
+        resolve: () => ({ delta: { heat: -5 }, rep: { council: 6 }, tone: "good", text: "A councilman's aide thanked you for the tip and forgot your name.", narrative_seeds: ["reported a syndicate stash behind the bodega to the council"], logs: [["gain", "Council +6, Heat -5."]] }) },
+      { id: "leave", label: "Leave It Buried", desc: "Nothing happens.", odds: () => "Safe",
+        resolve: () => ({ delta: {}, tone: "neutral", text: "Some ledgers are better unread.", narrative_seeds: ["left a syndicate ledger buried behind the bodega"], logs: [["narrative", "Closed the lid."]] }) }
+    ] },
+  { id: "blackout", title: "Block Power Outage", when: (s) => s.world.weather === "Rain", risk: 3,
+    flavor: "The power dies across the block. Storefronts go dark, the cameras blink out, and somebody down the street is already breaking a window.",
+    choices: [
+      { id: "hit", label: "Hit a Dark Storefront", desc: "Win: +$500, Heat +25. Lose: -20 Health, Heat +40.", odds: (s) => `${pct(55 + sense(s) * 5)}% success`,
+        resolve: (s, rng) => rng() * 100 < pct(55 + sense(s) * 5)
+          ? { delta: { cash: 500, heat: 25 }, tone: "good", text: "The register was still warm. The cameras were still dark.", narrative_seeds: ["robbed a dark storefront during a block-wide blackout"], logs: [["gain", "+$500."], ["warn", "Heat +25."]] }
+          : { delta: { health: -20, heat: 40 }, tone: "bad", text: "The owner had a flashlight and a shotgun.", narrative_seeds: ["got caught hitting a dark storefront during a blackout"], logs: [["loss", "-20 Health."], ["warn", "Heat +40."]] } },
+      { id: "generator", label: "Run the Block's Generator", desc: "Costs $200. Cred +8, Council +5.", req: (s) => need(s.player.stats.cash >= 200, "Requires $200"), odds: () => "Certain",
+        resolve: () => ({ delta: { cash: -200, streetCred: 8 }, rep: { council: 5 }, tone: "good", text: "The block cheered when the lights came back. Somebody remembered your name.", narrative_seeds: ["paid for a generator and kept the block lit during a blackout"], logs: [["loss", "-$200."], ["gain", "+8 Street Cred, Council +5."]] }) },
+      { id: "stay", label: "Stay Inside", desc: "+10 Energy. Nothing else.", odds: () => "Safe",
+        resolve: () => ({ delta: { energy: 10 }, tone: "neutral", text: "You slept through the worst of it.", narrative_seeds: ["stayed inside during a block-wide blackout"], logs: [["gain", "+10 Energy."]] }) }
+    ] },
 ];
 const eligible = (e, s) => (!e.districtFilter || e.districtFilter.includes(s.world.currentDistrict)) && s.player.stats.heat >= (e.minHeat || 0) && (!e.when || e.when(s));
 const costOf = (s, c) => (c.discountFlag && flag(s, c.discountFlag, false) ? c.discountCash : c.cash);

@@ -1,0 +1,9 @@
+{
+  "appId": "com.streetstories.game",
+  "appName": "Street Stories",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#09090b"
+  }
+}
